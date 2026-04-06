@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>site-monitor | Incident INC-204</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="incident">
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Incident Triage</p>
+          <a class="brand" href="./index.html">site-monitor</a>
+        </div>
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-nav"
+          data-menu-toggle
+        >
+          Menu
+        </button>
+        <nav class="nav-links" id="primary-nav" data-menu>
+          <a class="nav-link" href="./index.html">Dashboard</a>
+          <a class="nav-link is-active" href="./incident.html">Incident</a>
+          <a class="nav-link" href="./index.html#monitors">Monitors</a>
+        </nav>
+      </header>
+
+      <main class="page incident-page">
+        <section class="hero-card incident-hero">
+          <div>
+            <p class="eyebrow">Open incident</p>
+            <div class="incident-title-row">
+              <h1>INC-204 checkout latency spike</h1>
+              <span class="pill pill-incident" data-incident-state-badge>Open</span>
+            </div>
+            <p class="hero-copy">
+              checkout.example.com breached the latency threshold 18 minutes ago.
+              Recent checks show elevated response times and intermittent 502s.
+            </p>
+          </div>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <span>Monitor</span>
+              <strong>checkout.example.com</strong>
+            </div>
+            <div class="hero-metric">
+              <span>Priority</span>
+              <strong>P1</strong>
+            </div>
+            <div class="hero-metric">
+              <span>Responder</span>
+              <strong data-responder>Unassigned</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="sticky-actions panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Actions</p>
+              <h2>Touch-sized controls stay visible while scrolling.</h2>
+            </div>
+            <a class="text-link" href="./index.html">Back to dashboard</a>
+          </div>
+
+          <div class="action-grid">
+            <button class="primary-button" type="button" data-action="acknowledge">
+              Acknowledge incident
+            </button>
+            <button class="secondary-button" type="button" data-action="mute">
+              Mute alerts
+            </button>
+            <button class="secondary-button" type="button" data-action="resolve">
+              Resolve incident
+            </button>
+          </div>
+
+          <label class="note-field">
+            <span>Operator note</span>
+            <textarea
+              data-note
+              rows="3"
+              placeholder="Add context for the next responder."
+            ></textarea>
+          </label>
+        </section>
+
+        <section class="incident-layout">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Latest evidence</p>
+                <h2>Failure details remain readable without horizontal scroll.</h2>
+              </div>
+            </div>
+
+            <div class="evidence-list">
+              <article class="evidence-card">
+                <div>
+                  <h3>Latest failed check</h3>
+                  <p>00:18 UTC · 502 Bad Gateway · 7.3s response time</p>
+                </div>
+                <span class="pill pill-incident">failed</span>
+              </article>
+              <article class="evidence-card">
+                <div>
+                  <h3>Expected threshold</h3>
+                  <p>Alert after 3 consecutive failures or p95 latency over 2.0s</p>
+                </div>
+                <span class="pill pill-degraded">policy</span>
+              </article>
+              <article class="evidence-card">
+                <div>
+                  <h3>Delivery state</h3>
+                  <p>PagerDuty triggered, Slack posted, email pending retry</p>
+                </div>
+                <span class="pill pill-muted" data-delivery-state>not muted</span>
+              </article>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Timeline</p>
+                <h2>Incident events stay in source order for narrow screens.</h2>
+              </div>
+            </div>
+
+            <ol class="timeline" data-timeline>
+              <li class="timeline-item">
+                <span class="timeline-time">00:00 UTC</span>
+                <div>
+                  <h3>Incident opened automatically</h3>
+                  <p>Threshold crossed after 3 failed checks.</p>
+                </div>
+              </li>
+              <li class="timeline-item">
+                <span class="timeline-time">00:01 UTC</span>
+                <div>
+                  <h3>PagerDuty notification sent</h3>
+                  <p>Primary on-call rotation acknowledged receipt.</p>
+                </div>
+              </li>
+              <li class="timeline-item">
+                <span class="timeline-time">00:09 UTC</span>
+                <div>
+                  <h3>Response time increased again</h3>
+                  <p>p95 climbed to 6.8s after a short recovery window.</p>
+                </div>
+              </li>
+            </ol>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Recent checks</p>
+                <h2>Compact cards replace a wide results table on mobile.</h2>
+              </div>
+            </div>
+
+            <div class="check-list">
+              <article class="check-card">
+                <span class="pill pill-incident">00:18</span>
+                <div>
+                  <h3>502 Bad Gateway</h3>
+                  <p>7.3s · rule: response under 2.0s</p>
+                </div>
+              </article>
+              <article class="check-card">
+                <span class="pill pill-incident">00:17</span>
+                <div>
+                  <h3>504 Gateway Timeout</h3>
+                  <p>8.0s · upstream connection timed out</p>
+                </div>
+              </article>
+              <article class="check-card">
+                <span class="pill pill-degraded">00:16</span>
+                <div>
+                  <h3>200 OK</h3>
+                  <p>2.4s · above latency threshold</p>
+                </div>
+              </article>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

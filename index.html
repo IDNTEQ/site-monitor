@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>site-monitor | Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="dashboard">
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Operator Console</p>
+          <a class="brand" href="./index.html">site-monitor</a>
+        </div>
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-nav"
+          data-menu-toggle
+        >
+          Menu
+        </button>
+        <nav class="nav-links" id="primary-nav" data-menu>
+          <a class="nav-link is-active" href="./index.html">Dashboard</a>
+          <a class="nav-link" href="./incident.html">Incident</a>
+          <a class="nav-link" href="#monitors">Monitors</a>
+        </nav>
+      </header>
+
+      <main class="page">
+        <section class="hero-card">
+          <div>
+            <p class="eyebrow">Shift Summary</p>
+            <h1>Core monitor health stays readable and actionable on mobile.</h1>
+            <p class="hero-copy">
+              This slice focuses on the dashboard and incident-triage surfaces at
+              375px and above, with responsive cards, compact controls, and
+              touch-sized actions.
+            </p>
+          </div>
+          <div class="hero-metrics">
+            <div class="hero-metric">
+              <span>Open incidents</span>
+              <strong>2</strong>
+            </div>
+            <div class="hero-metric">
+              <span>Monitors in scope</span>
+              <strong>12</strong>
+            </div>
+            <div class="hero-metric">
+              <span>Target viewport</span>
+              <strong>375px+</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="summary-grid" aria-label="Monitor summary">
+          <article class="summary-card healthy">
+            <p>Healthy</p>
+            <strong>42</strong>
+            <span>steady over last hour</span>
+          </article>
+          <article class="summary-card degraded">
+            <p>Degraded</p>
+            <strong>3</strong>
+            <span>latency spike in production</span>
+          </article>
+          <article class="summary-card incident">
+            <p>Open incidents</p>
+            <strong>2</strong>
+            <span>1 acknowledged, 1 paging</span>
+          </article>
+          <article class="summary-card paused">
+            <p>Paused</p>
+            <strong>5</strong>
+            <span>maintenance window until 02:00 UTC</span>
+          </article>
+        </section>
+
+        <section class="panel filters-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Monitor filters</p>
+              <h2>Keep triage compact on narrow screens.</h2>
+            </div>
+            <button
+              class="secondary-button filters-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="dashboard-filters"
+              data-filters-toggle
+            >
+              Filters
+            </button>
+          </div>
+
+          <form class="filters-grid" id="dashboard-filters" data-filters>
+            <label>
+              <span>Environment</span>
+              <select name="environment">
+                <option value="all">All</option>
+                <option value="production">Production</option>
+                <option value="staging">Staging</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select name="status">
+                <option value="all">All</option>
+                <option value="healthy">Healthy</option>
+                <option value="degraded">Degraded</option>
+                <option value="incident">Incident</option>
+                <option value="paused">Paused</option>
+              </select>
+            </label>
+            <label>
+              <span>Incident state</span>
+              <select name="incident">
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="acknowledged">Acknowledged</option>
+                <option value="muted">Muted</option>
+                <option value="none">No incident</option>
+              </select>
+            </label>
+            <button class="secondary-button" type="reset">Reset</button>
+          </form>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="panel incident-queue">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Open incidents</p>
+                <h2>Responders can jump straight into triage.</h2>
+              </div>
+              <a class="text-link" href="./incident.html">Open incident page</a>
+            </div>
+
+            <div class="incident-list">
+              <a class="incident-card" href="./incident.html">
+                <div>
+                  <span class="pill pill-incident">Paging</span>
+                  <h3>INC-204 checkout latency spike</h3>
+                  <p>checkout.example.com · Production · Open for 18m</p>
+                </div>
+                <span class="incident-link">Triage</span>
+              </a>
+
+              <a class="incident-card muted-card" href="./incident.html">
+                <div>
+                  <span class="pill pill-muted">Muted</span>
+                  <h3>INC-201 auth gateway retries</h3>
+                  <p>auth.example.com · Production · Waiting on vendor rollback</p>
+                </div>
+                <span class="incident-link">Review</span>
+              </a>
+            </div>
+          </article>
+
+          <article class="panel monitor-panel" id="monitors">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Monitors</p>
+                <h2>Cards replace dense tables below tablet widths.</h2>
+              </div>
+              <p class="panel-note" data-results-count>Showing 4 monitors</p>
+            </div>
+
+            <div class="monitor-list" data-monitor-list>
+              <article
+                class="monitor-card"
+                data-environment="production"
+                data-status="incident"
+                data-incident="open"
+              >
+                <div class="monitor-topline">
+                  <div>
+                    <h3>checkout.example.com</h3>
+                    <p>Production · HTTP GET · Every 60s</p>
+                  </div>
+                  <span class="pill pill-incident">Incident</span>
+                </div>
+                <dl class="metric-pairs">
+                  <div>
+                    <dt>Last check</dt>
+                    <dd>502 in 7.3s</dd>
+                  </div>
+                  <div>
+                    <dt>Threshold</dt>
+                    <dd>3 failures</dd>
+                  </div>
+                  <div>
+                    <dt>Age</dt>
+                    <dd>18m</dd>
+                  </div>
+                  <div>
+                    <dt>Next run</dt>
+                    <dd>00:00:34</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <a class="primary-button" href="./incident.html">Open incident</a>
+                  <button class="secondary-button" type="button">Mute alerts</button>
+                </div>
+              </article>
+
+              <article
+                class="monitor-card"
+                data-environment="production"
+                data-status="degraded"
+                data-incident="acknowledged"
+              >
+                <div class="monitor-topline">
+                  <div>
+                    <h3>api.example.com</h3>
+                    <p>Production · HTTP GET · Every 30s</p>
+                  </div>
+                  <span class="pill pill-degraded">Degraded</span>
+                </div>
+                <dl class="metric-pairs">
+                  <div>
+                    <dt>Latency p95</dt>
+                    <dd>1.4s</dd>
+                  </div>
+                  <div>
+                    <dt>Status</dt>
+                    <dd>200-299</dd>
+                  </div>
+                  <div>
+                    <dt>Owner</dt>
+                    <dd>Platform</dd>
+                  </div>
+                  <div>
+                    <dt>Incident state</dt>
+                    <dd>Acknowledged</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <button class="primary-button" type="button">Acknowledge</button>
+                  <button class="secondary-button" type="button">Inspect checks</button>
+                </div>
+              </article>
+
+              <article
+                class="monitor-card"
+                data-environment="staging"
+                data-status="healthy"
+                data-incident="none"
+              >
+                <div class="monitor-topline">
+                  <div>
+                    <h3>status.staging.example.com</h3>
+                    <p>Staging · HTTP HEAD · Every 120s</p>
+                  </div>
+                  <span class="pill pill-healthy">Healthy</span>
+                </div>
+                <dl class="metric-pairs">
+                  <div>
+                    <dt>Last check</dt>
+                    <dd>204 in 241ms</dd>
+                  </div>
+                  <div>
+                    <dt>Response target</dt>
+                    <dd>&lt; 400ms</dd>
+                  </div>
+                  <div>
+                    <dt>Tags</dt>
+                    <dd>status-page</dd>
+                  </div>
+                  <div>
+                    <dt>Next run</dt>
+                    <dd>01:56</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <button class="secondary-button" type="button">View history</button>
+                </div>
+              </article>
+
+              <article
+                class="monitor-card"
+                data-environment="production"
+                data-status="paused"
+                data-incident="muted"
+              >
+                <div class="monitor-topline">
+                  <div>
+                    <h3>auth.example.com</h3>
+                    <p>Production · HTTP POST · Every 45s</p>
+                  </div>
+                  <span class="pill pill-paused">Paused</span>
+                </div>
+                <dl class="metric-pairs">
+                  <div>
+                    <dt>Window</dt>
+                    <dd>Database failover</dd>
+                  </div>
+                  <div>
+                    <dt>Resume</dt>
+                    <dd>02:00 UTC</dd>
+                  </div>
+                  <div>
+                    <dt>Pager</dt>
+                    <dd>Muted</dd>
+                  </div>
+                  <div>
+                    <dt>Updated by</dt>
+                    <dd>On-call</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <button class="secondary-button" type="button">Resume monitor</button>
+                </div>
+              </article>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
