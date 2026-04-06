@@ -1,0 +1,10 @@
+{
+  "name": "site-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal auditability slice for incident actions and policy changes.",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}

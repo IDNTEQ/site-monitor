@@ -1,7 +1,7 @@
 # Traceability Matrix -- site-monitor
 
 > **Last updated:** 2026-04-06
-> **Updated by:** superiority-core
+> **Updated by:** superiority-developer
 
 ## Requirements Traceability
 
@@ -17,5 +17,5 @@
 | NFR-003 | Dashboard load time | [#8](https://github.com/IDNTEQ/site-monitor/issues/8) |  | `` |  | Pending |
 | NFR-004 | Accessibility | [#9](https://github.com/IDNTEQ/site-monitor/issues/9) |  | `` |  | Pending |
 | NFR-005 | Secret handling | [#10](https://github.com/IDNTEQ/site-monitor/issues/10) |  | `` |  | Pending |
-| NFR-006 | Auditability | [#11](https://github.com/IDNTEQ/site-monitor/issues/11) |  | `` |  | Pending |
+| NFR-006 | Auditability | [#11](https://github.com/IDNTEQ/site-monitor/issues/11) |  | `test/auditability.test.js:7`, `test/auditability.test.js:66` |  | Needs Review |
 | NFR-007 | Mobile support | [#12](https://github.com/IDNTEQ/site-monitor/issues/12) |  | `` |  | Pending |
