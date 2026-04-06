@@ -12,7 +12,7 @@
 | REQ-003 | As an on-call responder, I want a dashboard of current monitor status and open incidents so that I can see what needs attention immediately. | [#3](https://github.com/IDNTEQ/site-monitor/issues/3) |  | `` |  | Pending |
 | REQ-004 | As an on-call responder, I want an incident timeline with failure evidence so that I can triage without searching raw logs elsewhere. | [#4](https://github.com/IDNTEQ/site-monitor/issues/4) |  | `` |  | Pending |
 | REQ-005 | As an on-call responder, I want to acknowledge, mute, and resolve incidents so that the team has clear operational ownership during an outage. | [#5](https://github.com/IDNTEQ/site-monitor/issues/5) |  | `` |  | Pending |
-| NFR-001 | Detection latency | [#6](https://github.com/IDNTEQ/site-monitor/issues/6) |  | `` |  | Pending |
+| NFR-001 | Detection latency | [#6](https://github.com/IDNTEQ/site-monitor/issues/6) |  | `test/integration/detection-latency.test.js:24` | Timestamped worker integration test pending PR evidence | Implemented |
 | NFR-002 | Check execution reliability | [#7](https://github.com/IDNTEQ/site-monitor/issues/7) |  | `` |  | Pending |
 | NFR-003 | Dashboard load time | [#8](https://github.com/IDNTEQ/site-monitor/issues/8) |  | `` |  | Pending |
 | NFR-004 | Accessibility | [#9](https://github.com/IDNTEQ/site-monitor/issues/9) |  | `` |  | Pending |
