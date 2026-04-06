@@ -1,0 +1,12 @@
+{
+  "name": "site-monitor-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "perf:budget": "node scripts/profile-dashboard.mjs",
+    "perf:lighthouse": "node scripts/lighthouse-profile.mjs"
+  }
+}
