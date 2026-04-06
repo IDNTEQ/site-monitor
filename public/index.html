@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>site-monitor incident triage</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">site-monitor</p>
+          <h1>Incident command surface</h1>
+          <p class="subhead">
+            Acknowledge ownership, suppress noisy alerts, and resolve incidents
+            with an auditable timeline.
+          </p>
+        </div>
+        <a class="hero-link" href="/incidents/inc-204">Open active incident</a>
+      </header>
+
+      <section class="layout" aria-live="polite">
+        <article class="panel panel-main">
+          <div class="panel-header">
+            <div>
+              <p class="kicker">Incident</p>
+              <h2 id="incident-title">Loading incident...</h2>
+            </div>
+            <span id="incident-state" class="pill">Loading</span>
+          </div>
+
+          <div class="summary-grid">
+            <div class="metric">
+              <span class="metric-label">Monitor</span>
+              <strong id="monitor-name">-</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Environment</span>
+              <strong id="monitor-environment">-</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Owner</span>
+              <strong id="incident-owner">Unassigned</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Alert delivery</span>
+              <strong id="incident-mute">Live</strong>
+            </div>
+          </div>
+
+          <div class="action-row" role="group" aria-label="Incident actions">
+            <button id="acknowledge-button" class="action-button" type="button">
+              Acknowledge incident
+            </button>
+            <button id="mute-button" class="action-button" type="button">
+              Mute alerts for this incident
+            </button>
+            <button id="resolve-button" class="action-button action-button-strong" type="button">
+              Resolve incident
+            </button>
+          </div>
+
+          <form id="action-form" class="action-form">
+            <div class="action-form-header">
+              <div>
+                <p class="kicker">Action form</p>
+                <h3 id="form-title">Acknowledge incident</h3>
+              </div>
+              <p id="form-description" class="form-description">
+                Record who owns this incident and include an optional triage note.
+              </p>
+            </div>
+
+            <label class="field">
+              <span>Responder name</span>
+              <input id="actor-input" name="actor" type="text" required />
+            </label>
+
+            <label class="field">
+              <span>Note</span>
+              <textarea id="note-input" name="note" rows="3"></textarea>
+            </label>
+
+            <button id="submit-button" class="submit-button" type="submit">
+              Submit action
+            </button>
+            <p id="form-status" class="form-status" role="status"></p>
+          </form>
+
+          <section class="timeline">
+            <div class="panel-section-header">
+              <div>
+                <p class="kicker">Timeline</p>
+                <h3>Operator and system events</h3>
+              </div>
+              <span class="timeline-hint">
+                Auto-resolution policy: resolve after 2 consecutive recoveries
+              </span>
+            </div>
+            <ol id="timeline-list" class="timeline-list"></ol>
+          </section>
+        </article>
+
+        <aside class="panel panel-side">
+          <section>
+            <p class="kicker">Latest evidence</p>
+            <h3>Most recent check</h3>
+            <dl class="detail-list">
+              <div>
+                <dt>Outcome</dt>
+                <dd id="check-outcome">-</dd>
+              </div>
+              <div>
+                <dt>Status code</dt>
+                <dd id="check-status-code">-</dd>
+              </div>
+              <div>
+                <dt>Latency</dt>
+                <dd id="check-latency">-</dd>
+              </div>
+              <div>
+                <dt>Rule result</dt>
+                <dd id="check-rule">-</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section>
+            <p class="kicker">Delivery history</p>
+            <h3>Notifications sent</h3>
+            <ul id="delivery-list" class="delivery-list"></ul>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
