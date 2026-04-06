@@ -10,6 +10,7 @@ import {
   validateCreateMonitorInput,
   validateUpdateMonitorInput,
 } from "../domain/monitor.js";
+import { createSecretCodec } from "../domain/secrets.js";
 
 export class MonitorValidationError extends Error {
   constructor(fieldErrors) {
@@ -112,11 +113,71 @@ function compareDescendingTimestamps(left, right, leftTimestamp, rightTimestamp)
   return left.name.localeCompare(right.name);
 }
 
+function sanitizeAlertPolicy(alertPolicy) {
+  if (!alertPolicy) {
+    return null;
+  }
+
+  return {
+    failureThreshold: alertPolicy.failureThreshold,
+    recoveryThreshold: alertPolicy.recoveryThreshold,
+    notificationChannels: [...(alertPolicy.notificationChannels ?? [])],
+    escalationTarget: alertPolicy.escalationTarget,
+    notificationCredentialChannels: Object.keys(
+      alertPolicy.notificationCredentialsEncrypted ?? {},
+    ),
+  };
+}
+
+function sanitizeMonitor(monitor) {
+  const { authSecretEncrypted, ...rest } = monitor;
+  return {
+    ...rest,
+    authSecretConfigured: Boolean(authSecretEncrypted),
+    alertPolicy: sanitizeAlertPolicy(monitor.alertPolicy),
+  };
+}
+
 export function createMonitorService({
   repository,
   clock = () => new Date(),
   createId = () => randomUUID(),
+  secretCodec = createSecretCodec(),
 }) {
+  function mergeEncryptedCredentials(existingCredentials, nextPolicyInput) {
+    const allowedChannels = new Set(nextPolicyInput.notificationChannels);
+    const merged = Object.fromEntries(
+      Object.entries(existingCredentials ?? {}).filter(([channel]) =>
+        allowedChannels.has(channel),
+      ),
+    );
+
+    if (nextPolicyInput.notificationCredentials) {
+      for (const [channel, secret] of Object.entries(nextPolicyInput.notificationCredentials)) {
+        merged[channel] = secretCodec.encrypt(secret);
+      }
+    }
+
+    return merged;
+  }
+
+  function buildStoredAlertPolicy(nextPolicyInput, existingPolicy = null) {
+    if (!nextPolicyInput) {
+      return null;
+    }
+
+    return {
+      failureThreshold: nextPolicyInput.failureThreshold,
+      recoveryThreshold: nextPolicyInput.recoveryThreshold,
+      notificationChannels: [...nextPolicyInput.notificationChannels],
+      escalationTarget: nextPolicyInput.escalationTarget,
+      notificationCredentialsEncrypted: mergeEncryptedCredentials(
+        existingPolicy?.notificationCredentialsEncrypted,
+        nextPolicyInput,
+      ),
+    };
+  }
+
   async function getIncidentRecord(incidentId) {
     const monitors = await repository.list();
 
@@ -208,18 +269,21 @@ export function createMonitorService({
     }
 
     const timestamp = clock().toISOString();
+    const { authSecret, ...normalizedMonitor } = monitorValidation.normalized;
     const monitor = {
       id: createId(),
-      ...monitorValidation.normalized,
+      ...normalizedMonitor,
       status: "active",
       createdAt: timestamp,
       updatedAt: timestamp,
       archivedAt: null,
-      alertPolicy: alertPolicyValidation.normalized,
+      authSecretEncrypted: authSecret ? secretCodec.encrypt(authSecret) : null,
+      alertPolicy: buildStoredAlertPolicy(alertPolicyValidation.normalized),
       maintenanceWindows: [],
     };
 
-    return repository.create(monitor);
+    const created = await repository.create(monitor);
+    return sanitizeMonitor(created);
   }
 
   async function updateMonitor(monitorId, input) {
@@ -243,22 +307,30 @@ export function createMonitorService({
     }
 
     const timestamp = clock().toISOString();
+    const { authSecret, ...normalizedMonitor } = monitorValidation.normalized;
     const updatedMonitor = {
       ...existingMonitor,
-      ...monitorValidation.normalized,
+      ...normalizedMonitor,
       status: monitorValidation.nextStatus,
       updatedAt: timestamp,
       archivedAt:
         monitorValidation.nextStatus === "archived"
           ? timestamp
           : existingMonitor.archivedAt,
+      authSecretEncrypted:
+        "authSecret" in input
+          ? authSecret
+            ? secretCodec.encrypt(authSecret)
+            : null
+          : existingMonitor.authSecretEncrypted ?? null,
       alertPolicy:
         "alertPolicy" in input
-          ? alertPolicyValidation.normalized
+          ? buildStoredAlertPolicy(alertPolicyValidation.normalized, existingMonitor.alertPolicy)
           : existingMonitor.alertPolicy,
     };
 
-    return repository.update(updatedMonitor);
+    const updated = await repository.update(updatedMonitor);
+    return sanitizeMonitor(updated);
   }
 
   async function createMaintenanceWindow(monitorId, input) {
@@ -358,7 +430,9 @@ export function createMonitorService({
 
   async function listRunnableMonitors() {
     const monitors = await repository.list();
-    return monitors.filter((monitor) => monitor.status === "active");
+    return monitors
+      .filter((monitor) => monitor.status === "active")
+      .map((monitor) => sanitizeMonitor(monitor));
   }
 
   async function getDashboard(filters = {}) {
@@ -474,27 +548,30 @@ export function createMonitorService({
       throw new MonitorNotFoundError(monitorId);
     }
 
+    const sanitizedMonitor = sanitizeMonitor(monitor);
+
     return {
       monitor: {
-        id: monitor.id,
-        name: monitor.name,
-        environment: monitor.environment,
-        url: monitor.url,
-        method: monitor.method,
-        status: monitor.status,
-        intervalSeconds: monitor.intervalSeconds,
-        timeoutMs: monitor.timeoutMs,
-        expectedStatusMin: monitor.expectedStatusMin,
-        expectedStatusMax: monitor.expectedStatusMax,
-        keyword: monitor.keyword ?? null,
-        tags: monitor.tags ?? [],
-        lastCheckAt: monitor.lastCheckAt ?? null,
-        responseTimeMs: monitor.responseTimeMs ?? null,
-        createdAt: monitor.createdAt,
-        updatedAt: monitor.updatedAt,
-        alertPolicy: monitor.alertPolicy ?? null,
-        maintenanceWindows: monitor.maintenanceWindows ?? [],
-        currentIncident: monitor.currentIncident ?? null,
+        id: sanitizedMonitor.id,
+        name: sanitizedMonitor.name,
+        environment: sanitizedMonitor.environment,
+        url: sanitizedMonitor.url,
+        method: sanitizedMonitor.method,
+        status: sanitizedMonitor.status,
+        intervalSeconds: sanitizedMonitor.intervalSeconds,
+        timeoutMs: sanitizedMonitor.timeoutMs,
+        expectedStatusMin: sanitizedMonitor.expectedStatusMin,
+        expectedStatusMax: sanitizedMonitor.expectedStatusMax,
+        keyword: sanitizedMonitor.keyword ?? null,
+        tags: sanitizedMonitor.tags ?? [],
+        lastCheckAt: sanitizedMonitor.lastCheckAt ?? null,
+        responseTimeMs: sanitizedMonitor.responseTimeMs ?? null,
+        createdAt: sanitizedMonitor.createdAt,
+        updatedAt: sanitizedMonitor.updatedAt,
+        authSecretConfigured: sanitizedMonitor.authSecretConfigured,
+        alertPolicy: sanitizedMonitor.alertPolicy ?? null,
+        maintenanceWindows: sanitizedMonitor.maintenanceWindows ?? [],
+        currentIncident: sanitizedMonitor.currentIncident ?? null,
       },
       recentChecks: [...(monitor.checkResults ?? [])]
         .sort((left, right) => right.checkedAt.localeCompare(left.checkedAt))

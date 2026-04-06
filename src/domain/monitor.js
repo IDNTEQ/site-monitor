@@ -122,6 +122,19 @@ function validateTags(value, fieldErrors) {
   return normalized.map((entry) => entry.trim());
 }
 
+function validateSecret(value, fieldName, message, fieldErrors) {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    fieldErrors[fieldName] = message;
+    return null;
+  }
+
+  return value.trim();
+}
+
 function validateBaseMonitor(candidate) {
   const fieldErrors = {};
 
@@ -202,6 +215,16 @@ function validateBaseMonitor(candidate) {
     tags = validateTags(candidate.tags, fieldErrors);
   }
 
+  let authSecret = null;
+  if ("authSecret" in candidate) {
+    authSecret = validateSecret(
+      candidate.authSecret,
+      "authSecret",
+      "Auth secret must be a non-empty string when provided.",
+      fieldErrors,
+    );
+  }
+
   return {
     fieldErrors,
     normalized: {
@@ -215,6 +238,7 @@ function validateBaseMonitor(candidate) {
       expectedStatusMax,
       keyword,
       tags,
+      authSecret,
     },
   };
 }
@@ -224,6 +248,7 @@ function validateCreateMonitorInput(input) {
     ...input,
     keyword: "keyword" in input ? input.keyword : null,
     tags: "tags" in input ? input.tags : [],
+    authSecret: "authSecret" in input ? input.authSecret : null,
   });
 }
 
@@ -240,6 +265,7 @@ function validateUpdateMonitorInput(existingMonitor, input) {
     "expectedStatusMax",
     "keyword",
     "tags",
+    "authSecret",
   ].some((fieldName) => fieldName in input);
 
   if (existingMonitor.status === "archived") {

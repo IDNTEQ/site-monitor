@@ -53,6 +53,38 @@ export function validateAlertPolicy(input) {
     fieldErrors["alertPolicy.escalationTarget"] = "Escalation target is required.";
   }
 
+  let notificationCredentials;
+  if ("notificationCredentials" in input) {
+    if (
+      !input.notificationCredentials ||
+      typeof input.notificationCredentials !== "object" ||
+      Array.isArray(input.notificationCredentials)
+    ) {
+      fieldErrors["alertPolicy.notificationCredentials"] =
+        "Notification credentials must be an object keyed by channel name.";
+    } else {
+      notificationCredentials = Object.fromEntries(
+        Object.entries(input.notificationCredentials).map(([channel, secret]) => [
+          channel.trim(),
+          typeof secret === "string" ? secret.trim() : secret,
+        ]),
+      );
+
+      if (
+        Object.keys(notificationCredentials).length === 0 ||
+        Object.entries(notificationCredentials).some(
+          ([channel, secret]) =>
+            !isNonEmptyString(channel) ||
+            !isNonEmptyString(secret) ||
+            !notificationChannels?.includes(channel),
+        )
+      ) {
+        fieldErrors["alertPolicy.notificationCredentials"] =
+          "Notification credentials must map configured channels to non-empty secret values.";
+      }
+    }
+  }
+
   return {
     fieldErrors,
     normalized: Object.keys(fieldErrors).length > 0
@@ -62,6 +94,7 @@ export function validateAlertPolicy(input) {
           recoveryThreshold: input.recoveryThreshold,
           notificationChannels,
           escalationTarget: input.escalationTarget.trim(),
+          notificationCredentials,
         },
   };
 }
