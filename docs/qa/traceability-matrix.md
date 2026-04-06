@@ -1,13 +1,13 @@
 # Traceability Matrix -- site-monitor
 
 > **Last updated:** 2026-04-06
-> **Updated by:** superiority-core
+> **Updated by:** superiority-developer
 
 ## Requirements Traceability
 
 | ID | Requirement | Issue | PR | Test File:Line | Staging Evidence | Status |
 |----|-------------|-------|----|----------------|------------------|--------|
-| REQ-001 | As a reliability engineer, I want to create and manage monitors so that important sites and endpoints are checked automatically. | [#1](https://github.com/IDNTEQ/site-monitor/issues/1) |  | `` |  | Pending |
+| REQ-001 | As a reliability engineer, I want to create and manage monitors so that important sites and endpoints are checked automatically. | [#1](https://github.com/IDNTEQ/site-monitor/issues/1) |  | `test/monitor-service.test.js:19`, `test/monitor-service.test.js:48`, `test/monitor-service.test.js:91`, `test/app.test.js:52`, `test/app.test.js:79` |  | Needs Review |
 | REQ-002 | As a reliability engineer, I want to configure alert policies and maintenance windows so that responders are notified only when failures are actionable. | [#2](https://github.com/IDNTEQ/site-monitor/issues/2) |  | `` |  | Pending |
 | REQ-003 | As an on-call responder, I want a dashboard of current monitor status and open incidents so that I can see what needs attention immediately. | [#3](https://github.com/IDNTEQ/site-monitor/issues/3) |  | `` |  | Pending |
 | REQ-004 | As an on-call responder, I want an incident timeline with failure evidence so that I can triage without searching raw logs elsewhere. | [#4](https://github.com/IDNTEQ/site-monitor/issues/4) |  | `` |  | Pending |

@@ -1,0 +1,11 @@
+{
+  "name": "site-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monitor management slice for site-monitor.",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
