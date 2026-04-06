@@ -1,0 +1,9 @@
+{
+  "name": "site-monitor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "audit:staging-reliability": "node scripts/run-staging-reliability-audit.js"
+  }
+}
