@@ -41,6 +41,42 @@ test("POST /api/monitors creates a monitor", async () => {
   assert.equal(result.payload.monitor.status, "active");
 });
 
+test("POST /api/monitors masks secret fields after creation", async () => {
+  const result = await handleApiRequest({
+    service: createService(),
+    method: "POST",
+    pathname: "/api/monitors",
+    body: {
+      name: "Private API",
+      environment: "production",
+      url: "https://example.com/private",
+      method: "GET",
+      intervalSeconds: 60,
+      timeoutMs: 1000,
+      expectedStatusMin: 200,
+      expectedStatusMax: 299,
+      authSecret: "monitor-shared-secret",
+      alertPolicy: {
+        failureThreshold: 1,
+        recoveryThreshold: 1,
+        notificationChannels: ["email"],
+        escalationTarget: "on-call-primary",
+        notificationCredentials: {
+          email: "smtp-password",
+        },
+      },
+    },
+  });
+
+  assert.equal(result.statusCode, 201);
+  assert.equal(result.payload.monitor.authSecretConfigured, true);
+  assert.equal("authSecret" in result.payload.monitor, false);
+  assert.deepEqual(result.payload.monitor.alertPolicy.notificationCredentialChannels, [
+    "email",
+  ]);
+  assert.equal("notificationCredentials" in result.payload.monitor.alertPolicy, false);
+});
+
 test("PATCH /api/monitors/:monitorId returns validation errors", async () => {
   const service = createService();
   const created = await handleApiRequest({

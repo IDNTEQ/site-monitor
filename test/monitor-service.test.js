@@ -43,6 +43,55 @@ test("creates a monitor with normalized defaults", async () => {
   assert.match(monitor.id, /^[0-9a-f-]{36}$/);
 });
 
+test("encrypts monitor and notification secrets at rest and never returns them in plaintext", async () => {
+  const { service, repository } = createServiceBundle();
+
+  const monitor = await service.createMonitor({
+    name: "Authenticated API",
+    environment: "production",
+    url: "https://example.com/private",
+    method: "GET",
+    intervalSeconds: 60,
+    timeoutMs: 5000,
+    expectedStatusMin: 200,
+    expectedStatusMax: 299,
+    authSecret: "monitor-shared-secret",
+    alertPolicy: {
+      failureThreshold: 2,
+      recoveryThreshold: 1,
+      notificationChannels: ["email", "pagerduty"],
+      escalationTarget: "on-call-primary",
+      notificationCredentials: {
+        email: "smtp-password",
+        pagerduty: "routing-key",
+      },
+    },
+  });
+
+  const stored = await repository.getById(monitor.id);
+
+  assert.equal(monitor.authSecretConfigured, true);
+  assert.equal("authSecret" in monitor, false);
+  assert.deepEqual(monitor.alertPolicy.notificationCredentialChannels, [
+    "email",
+    "pagerduty",
+  ]);
+  assert.equal("notificationCredentials" in monitor.alertPolicy, false);
+
+  assert.equal(typeof stored.authSecretEncrypted, "string");
+  assert.notEqual(stored.authSecretEncrypted, "monitor-shared-secret");
+  assert.equal(typeof stored.alertPolicy.notificationCredentialsEncrypted.email, "string");
+  assert.notEqual(
+    stored.alertPolicy.notificationCredentialsEncrypted.email,
+    "smtp-password",
+  );
+  assert.equal(typeof stored.alertPolicy.notificationCredentialsEncrypted.pagerduty, "string");
+  assert.notEqual(
+    stored.alertPolicy.notificationCredentialsEncrypted.pagerduty,
+    "routing-key",
+  );
+});
+
 test("returns field-level validation errors for invalid monitor input", async () => {
   const service = createService();
 
@@ -212,8 +261,14 @@ test("configures alert policy and previews notify versus suppress decisions", as
       recoveryThreshold: 2,
       notificationChannels: ["email", "pagerduty"],
       escalationTarget: "on-call-primary",
+      notificationCredentials: {
+        email: "smtp-password",
+      },
     },
   });
+
+  const updated = await service.getMonitorDetail(created.id);
+  assert.deepEqual(updated.monitor.alertPolicy.notificationCredentialChannels, ["email"]);
 
   const belowThreshold = await service.previewAlertDecision(created.id, {
     sample: "failure",
