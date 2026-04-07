@@ -16,7 +16,7 @@ function createServiceBundle() {
   };
 }
 
-test("GET /dashboard renders accessible filters, summary labels, and detail links", async () => {
+test("GET /dashboard renders accessible filters, create form, summary labels, and detail links", async () => {
   const { service, repository } = createServiceBundle();
 
   const healthy = await service.createMonitor({
@@ -75,6 +75,9 @@ test("GET /dashboard renders accessible filters, summary labels, and detail link
   assert.equal(result.statusCode, 200);
   assert.equal(result.contentType, "text/html; charset=utf-8");
   assert.match(result.body, /<main id="main-content">/);
+  assert.match(result.body, /<h2 id="create-monitor-title">Create monitor<\/h2>/);
+  assert.match(result.body, /<form action="\/monitors" method="post">/);
+  assert.match(result.body, /<label for="create-monitor-name">Name<\/label>/);
   assert.match(result.body, /<label for="environment-filter">Environment<\/label>/);
   assert.match(result.body, /aria-live="polite"/);
   assert.match(result.body, /Open incidents/);
@@ -84,7 +87,64 @@ test("GET /dashboard renders accessible filters, summary labels, and detail link
   assert.match(result.body, /\/incidents\/INC-204/);
 });
 
-test("GET /monitors/:monitorId renders monitor detail with descriptive action labels and tabular history", async () => {
+test("POST /monitors creates a monitor from the dashboard form and redirects to detail", async () => {
+  const { service, repository } = createServiceBundle();
+
+  const result = await handlePageRequest({
+    service,
+    method: "POST",
+    pathname: "/monitors",
+    body: {
+      name: "Checkout",
+      environment: "production",
+      url: "https://example.com/checkout",
+      method: "GET",
+      intervalSeconds: "60",
+      timeoutMs: "1000",
+      expectedStatusMin: "200",
+      expectedStatusMax: "299",
+      keyword: "healthy",
+      tags: "checkout, prod",
+    },
+  });
+
+  const created = (await repository.list())[0];
+
+  assert.equal(result.statusCode, 303);
+  assert.equal(result.headers.location, `/monitors/${created.id}`);
+  assert.equal(created.name, "Checkout");
+  assert.deepEqual(created.tags, ["checkout", "prod"]);
+});
+
+test("POST /monitors returns field-level validation errors in HTML", async () => {
+  const { service } = createServiceBundle();
+
+  const result = await handlePageRequest({
+    service,
+    method: "POST",
+    pathname: "/monitors",
+    body: {
+      name: "",
+      environment: "",
+      url: "bad-url",
+      method: "TRACE",
+      intervalSeconds: "5",
+      timeoutMs: "10",
+      expectedStatusMin: "700",
+      expectedStatusMax: "200",
+      keyword: "ok",
+      tags: "",
+    },
+  });
+
+  assert.equal(result.statusCode, 422);
+  assert.match(result.body, /Please fix the following/);
+  assert.match(result.body, /Name is required\./);
+  assert.match(result.body, /Environment is required\./);
+  assert.match(result.body, /URL must be an absolute HTTP or HTTPS URL\./);
+});
+
+test("GET /monitors/:monitorId renders monitor detail with edit form, descriptive action labels, and tabular history", async () => {
   const { service, repository } = createServiceBundle();
 
   const monitor = await service.createMonitor({
@@ -147,6 +207,10 @@ test("GET /monitors/:monitorId renders monitor detail with descriptive action la
   assert.equal(result.statusCode, 200);
   assert.match(result.body, /<h1>Monitor Detail<\/h1>/);
   assert.match(result.body, /Checkout/);
+  assert.match(result.body, /<h2 id="monitor-edit-title">Edit monitor<\/h2>/);
+  assert.match(result.body, /<form action="\/monitors\/.*" method="post" aria-labelledby="monitor-edit-title">/);
+  assert.match(result.body, /<label for="edit-monitor-name">Name<\/label>/);
+  assert.match(result.body, /Save monitor changes/);
   assert.match(
     result.body,
     /<button type="submit" name="action" value="pause">Pause monitor<\/button>/,
@@ -159,6 +223,48 @@ test("GET /monitors/:monitorId renders monitor detail with descriptive action la
   assert.match(result.body, /<table>/);
   assert.match(result.body, /Latest incident/);
   assert.match(result.body, /\/incidents\/INC-301/);
+});
+
+test("POST /monitors/:monitorId updates monitor configuration and redirects", async () => {
+  const { service, repository } = createServiceBundle();
+
+  const monitor = await service.createMonitor({
+    name: "Checkout",
+    environment: "production",
+    url: "https://example.com/checkout",
+    method: "GET",
+    intervalSeconds: 60,
+    timeoutMs: 1000,
+    expectedStatusMin: 200,
+    expectedStatusMax: 299,
+  });
+
+  const result = await handlePageRequest({
+    service,
+    method: "POST",
+    pathname: `/monitors/${monitor.id}`,
+    body: {
+      name: "Checkout API",
+      environment: "staging",
+      url: "https://staging.example.com/checkout",
+      method: "HEAD",
+      intervalSeconds: "120",
+      timeoutMs: "1500",
+      expectedStatusMin: "200",
+      expectedStatusMax: "399",
+      keyword: "ok",
+      tags: "checkout, staging",
+    },
+  });
+
+  const updated = await repository.getById(monitor.id);
+
+  assert.equal(result.statusCode, 303);
+  assert.equal(result.headers.location, `/monitors/${monitor.id}`);
+  assert.equal(updated.name, "Checkout API");
+  assert.equal(updated.environment, "staging");
+  assert.equal(updated.method, "HEAD");
+  assert.deepEqual(updated.tags, ["checkout", "staging"]);
 });
 
 test("GET /incidents/:incidentId renders explicit action labels and source-order timeline", async () => {
