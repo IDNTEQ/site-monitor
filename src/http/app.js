@@ -68,6 +68,41 @@ function htmlResult(statusCode, body, headers) {
   };
 }
 
+function parseIntegerField(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
+function parseTagField(value) {
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function buildMonitorInputFromPageBody(body = {}) {
+  return {
+    name: body.name ?? "",
+    environment: body.environment ?? "",
+    url: body.url ?? "",
+    method: body.method ?? "",
+    intervalSeconds: parseIntegerField(body.intervalSeconds),
+    timeoutMs: parseIntegerField(body.timeoutMs),
+    expectedStatusMin: parseIntegerField(body.expectedStatusMin),
+    expectedStatusMax: parseIntegerField(body.expectedStatusMax),
+    keyword: body.keyword ?? "",
+    tags: parseTagField(body.tags),
+  };
+}
+
 export async function handleApiRequest({
   service,
   method,
@@ -184,20 +219,81 @@ export async function handlePageRequest({
     return htmlResult(200, renderDashboardPage(dashboard, filters));
   }
 
+  if (method === "POST" && pathname === "/monitors") {
+    try {
+      const monitor = await service.createMonitor(buildMonitorInputFromPageBody(body));
+      return htmlResult(303, "", {
+        location: `/monitors/${monitor.id}`,
+      });
+    } catch (error) {
+      if (!(error instanceof MonitorValidationError)) {
+        throw error;
+      }
+
+      const dashboard = await service.getDashboard();
+      return htmlResult(
+        422,
+        renderDashboardPage(dashboard, {}, {
+          values: body ?? {},
+          errors: error.fieldErrors,
+        }),
+      );
+    }
+  }
+
   const monitorRouteMatch = pathname.match(/^\/monitors\/([^/]+)$/);
   if (method === "GET" && monitorRouteMatch) {
     const detail = await service.getMonitorDetail(monitorRouteMatch[1]);
     return htmlResult(200, renderMonitorDetailPage(detail));
   }
 
+  if (method === "POST" && monitorRouteMatch) {
+    try {
+      await service.updateMonitor(
+        monitorRouteMatch[1],
+        buildMonitorInputFromPageBody(body),
+      );
+      return htmlResult(303, "", {
+        location: `/monitors/${monitorRouteMatch[1]}`,
+      });
+    } catch (error) {
+      if (!(error instanceof MonitorValidationError)) {
+        throw error;
+      }
+
+      const detail = await service.getMonitorDetail(monitorRouteMatch[1]);
+      return htmlResult(
+        422,
+        renderMonitorDetailPage(detail, {
+          values: body ?? {},
+          errors: error.fieldErrors,
+        }),
+      );
+    }
+  }
+
   const monitorActionRouteMatch = pathname.match(/^\/monitors\/([^/]+)\/actions$/);
   if (method === "POST" && monitorActionRouteMatch) {
-    await service.updateMonitor(monitorActionRouteMatch[1], {
-      action: body?.action,
-    });
-    return htmlResult(303, "", {
-      location: `/monitors/${monitorActionRouteMatch[1]}`,
-    });
+    try {
+      await service.updateMonitor(monitorActionRouteMatch[1], {
+        action: body?.action,
+      });
+      return htmlResult(303, "", {
+        location: `/monitors/${monitorActionRouteMatch[1]}`,
+      });
+    } catch (error) {
+      if (!(error instanceof MonitorValidationError)) {
+        throw error;
+      }
+
+      const detail = await service.getMonitorDetail(monitorActionRouteMatch[1]);
+      return htmlResult(
+        422,
+        renderMonitorDetailPage(detail, {
+          errors: error.fieldErrors,
+        }),
+      );
+    }
   }
 
   const incidentRouteMatch = pathname.match(/^\/incidents\/([^/]+)$/);

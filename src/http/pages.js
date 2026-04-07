@@ -224,7 +224,94 @@ function renderActionButtons(buttons) {
     .join("")}</div>`;
 }
 
-export function renderDashboardPage(dashboard, filters = {}) {
+function renderFieldError(errors, fieldName, idPrefix) {
+  if (!errors?.[fieldName]) {
+    return "";
+  }
+
+  return `<p class="field-error" id="${escapeHtml(idPrefix)}-${escapeHtml(fieldName)}-error">${escapeHtml(errors[fieldName])}</p>`;
+}
+
+function resolveFieldValue(values, fieldName, fallback = "") {
+  const value = values?.[fieldName];
+
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function renderMonitorFormFields(values = {}, errors = {}, idPrefix = "monitor-form") {
+  const method = String(resolveFieldValue(values, "method", "GET")).toUpperCase();
+  const methodOptions = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    .map(
+      (option) =>
+        `<option value="${option}"${method === option ? " selected" : ""}>${option}</option>`,
+    )
+    .join("");
+
+  return `<div class="grid cols-2">
+      <div>
+        <label for="${escapeHtml(idPrefix)}-name">Name</label>
+        <input id="${escapeHtml(idPrefix)}-name" name="name" value="${escapeHtml(resolveFieldValue(values, "name"))}" aria-describedby="${errors.name ? `${idPrefix}-name-error` : ""}" />
+        ${renderFieldError(errors, "name", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-environment">Environment</label>
+        <input id="${escapeHtml(idPrefix)}-environment" name="environment" value="${escapeHtml(resolveFieldValue(values, "environment"))}" aria-describedby="${errors.environment ? `${idPrefix}-environment-error` : ""}" />
+        ${renderFieldError(errors, "environment", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-url">URL</label>
+        <input id="${escapeHtml(idPrefix)}-url" name="url" value="${escapeHtml(resolveFieldValue(values, "url"))}" aria-describedby="${errors.url ? `${idPrefix}-url-error` : ""}" />
+        ${renderFieldError(errors, "url", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-method">Method</label>
+        <select id="${escapeHtml(idPrefix)}-method" name="method" aria-describedby="${errors.method ? `${idPrefix}-method-error` : ""}">
+          ${methodOptions}
+        </select>
+        ${renderFieldError(errors, "method", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-intervalSeconds">Interval seconds</label>
+        <input id="${escapeHtml(idPrefix)}-intervalSeconds" name="intervalSeconds" type="number" min="10" value="${escapeHtml(resolveFieldValue(values, "intervalSeconds", 60))}" aria-describedby="${errors.intervalSeconds ? `${idPrefix}-intervalSeconds-error` : ""}" />
+        ${renderFieldError(errors, "intervalSeconds", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-timeoutMs">Timeout milliseconds</label>
+        <input id="${escapeHtml(idPrefix)}-timeoutMs" name="timeoutMs" type="number" min="100" max="30000" value="${escapeHtml(resolveFieldValue(values, "timeoutMs", 1000))}" aria-describedby="${errors.timeoutMs ? `${idPrefix}-timeoutMs-error` : ""}" />
+        ${renderFieldError(errors, "timeoutMs", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-expectedStatusMin">Expected status min</label>
+        <input id="${escapeHtml(idPrefix)}-expectedStatusMin" name="expectedStatusMin" type="number" min="100" max="599" value="${escapeHtml(resolveFieldValue(values, "expectedStatusMin", 200))}" aria-describedby="${errors.expectedStatusMin ? `${idPrefix}-expectedStatusMin-error` : ""}" />
+        ${renderFieldError(errors, "expectedStatusMin", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-expectedStatusMax">Expected status max</label>
+        <input id="${escapeHtml(idPrefix)}-expectedStatusMax" name="expectedStatusMax" type="number" min="100" max="599" value="${escapeHtml(resolveFieldValue(values, "expectedStatusMax", 299))}" aria-describedby="${errors.expectedStatusMax ? `${idPrefix}-expectedStatusMax-error` : ""}" />
+        ${renderFieldError(errors, "expectedStatusMax", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-keyword">Keyword match</label>
+        <input id="${escapeHtml(idPrefix)}-keyword" name="keyword" value="${escapeHtml(resolveFieldValue(values, "keyword"))}" aria-describedby="${errors.keyword ? `${idPrefix}-keyword-error` : ""}" />
+        ${renderFieldError(errors, "keyword", idPrefix)}
+      </div>
+      <div>
+        <label for="${escapeHtml(idPrefix)}-tags">Tags</label>
+        <input id="${escapeHtml(idPrefix)}-tags" name="tags" value="${escapeHtml(resolveFieldValue(values, "tags"))}" aria-describedby="${errors.tags ? `${idPrefix}-tags-error` : ""}" />
+        ${renderFieldError(errors, "tags", idPrefix)}
+      </div>
+    </div>`;
+}
+
+export function renderDashboardPage(dashboard, filters = {}, createFormState = {}) {
   const summaryCards = [
     ["Healthy", dashboard.summary.healthy, "o"],
     ["Degraded", dashboard.summary.degraded, "~"],
@@ -239,6 +326,14 @@ export function renderDashboardPage(dashboard, filters = {}) {
     <p class="muted">Showing the last ${escapeHtml(dashboard.dataset.days)} days from ${escapeHtml(
       dashboard.dataset.startedAt,
     )} to ${escapeHtml(dashboard.dataset.asOf)}.</p>
+    <section aria-labelledby="create-monitor-title">
+      <h2 id="create-monitor-title">Create monitor</h2>
+      ${renderErrorSummary(createFormState.errors)}
+      <form action="/monitors" method="post">
+        ${renderMonitorFormFields(createFormState.values, createFormState.errors, "create-monitor")}
+        <button type="submit">Create monitor</button>
+      </form>
+    </section>
     <section aria-labelledby="summary-title">
       <h2 id="summary-title">Current health summary</h2>
       <div class="grid cols-4">
@@ -329,7 +424,7 @@ export function renderDashboardPage(dashboard, filters = {}) {
   );
 }
 
-export function renderMonitorDetailPage(detail) {
+export function renderMonitorDetailPage(detail, formState = {}) {
   const buttons =
     detail.monitor.status === "active"
       ? [
@@ -348,6 +443,7 @@ export function renderMonitorDetailPage(detail) {
     "",
     `<p><a href="/dashboard">Back to dashboard</a></p>
     <h1>Monitor Detail</h1>
+    ${renderErrorSummary(formState.errors)}
     <section aria-labelledby="monitor-summary-title">
       <h2 id="monitor-summary-title">${escapeHtml(detail.monitor.name)}</h2>
       ${renderKeyValueRows([
@@ -363,6 +459,11 @@ export function renderMonitorDetailPage(detail) {
         ["Last check", detail.monitor.lastCheckAt ?? "No checks yet"],
       ])}
     </section>
+    <form action="/monitors/${escapeHtml(detail.monitor.id)}" method="post" aria-labelledby="monitor-edit-title">
+      <h2 id="monitor-edit-title">Edit monitor</h2>
+      ${renderMonitorFormFields(formState.values ?? detail.monitor, formState.errors, "edit-monitor")}
+      <button type="submit">Save monitor changes</button>
+    </form>
     <form action="/monitors/${escapeHtml(detail.monitor.id)}/actions" method="post" aria-labelledby="monitor-actions-title">
       <h2 id="monitor-actions-title">Monitor actions</h2>
       ${
