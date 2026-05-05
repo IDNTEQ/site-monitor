@@ -1,4 +1,4 @@
-import { createCipheriv, randomBytes, scryptSync } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_LENGTH = 32;
@@ -25,6 +25,20 @@ export function createSecretCodec({
         authTag.toString("hex"),
         ciphertext.toString("hex"),
       ].join(":");
+    },
+
+    decrypt(encryptedSecret) {
+      const [prefix, ivHex, authTagHex, ciphertextHex] = String(encryptedSecret).split(":");
+      if (prefix !== "enc" || !ivHex || !authTagHex || !ciphertextHex) {
+        throw new Error("Secret is not in the expected encrypted format.");
+      }
+
+      const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(ivHex, "hex"));
+      decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
+      return Buffer.concat([
+        decipher.update(Buffer.from(ciphertextHex, "hex")),
+        decipher.final(),
+      ]).toString("utf8");
     },
   };
 }

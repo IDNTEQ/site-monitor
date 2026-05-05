@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { isMaintenanceWindowActive } from "../domain/alerting.js";
+
 const RELIABILITY_TARGET = 0.99;
 
 function normalizeTimestamp(value) {
@@ -38,6 +40,24 @@ function countTrailingFailures(checkResults) {
   }
 
   return count;
+}
+
+function countTrailingSuccesses(checkResults) {
+  let count = 0;
+  for (let index = checkResults.length - 1; index >= 0; index -= 1) {
+    if (checkResults[index].outcome !== "success") {
+      break;
+    }
+    count += 1;
+  }
+
+  return count;
+}
+
+function isAlertDeliverySuppressed(monitor, checkedAt) {
+  return (monitor.maintenanceWindows ?? []).some((maintenanceWindow) =>
+    isMaintenanceWindowActive(maintenanceWindow, checkedAt),
+  );
 }
 
 function determineOutcome(monitor, checkResponse) {
@@ -82,8 +102,21 @@ function isRunWithinWindow(workerRun, startedAt, endedAt) {
 export function createCheckWorkerService({
   repository,
   fetchCheck,
+  alertDelivery = null,
   createId = () => randomUUID(),
 }) {
+  async function deliverIncidentEvent({ monitor, incident, eventType, checkedAt }) {
+    if (!alertDelivery || isAlertDeliverySuppressed(monitor, checkedAt)) {
+      return;
+    }
+
+    await alertDelivery.deliver({
+      monitor,
+      incident,
+      eventType,
+    });
+  }
+
   async function runDueMonitors(checkedAtInput) {
     const checkedAt = normalizeTimestamp(checkedAtInput);
     const monitors = await repository.list();
@@ -116,10 +149,16 @@ export function createCheckWorkerService({
 
         const trailingFailures = countTrailingFailures(nextCheckResults);
         const failureThreshold = monitor.alertPolicy?.failureThreshold ?? Number.POSITIVE_INFINITY;
+        let openedIncidentId = null;
+        let resolvedIncidentId = null;
+        const hasActiveIncident =
+          updatedMonitor.currentIncident &&
+          updatedMonitor.currentIncident.state !== "resolved";
+
         if (
           outcome === "failure" &&
           trailingFailures >= failureThreshold &&
-          !updatedMonitor.currentIncident
+          !hasActiveIncident
         ) {
           const firstFailureAt =
             nextCheckResults[nextCheckResults.length - trailingFailures].checkedAt;
@@ -143,6 +182,7 @@ export function createCheckWorkerService({
             ],
           };
 
+          openedIncidentId = incident.id;
           updatedMonitor.currentIncident = {
             id: incident.id,
             state: incident.state,
@@ -151,6 +191,61 @@ export function createCheckWorkerService({
           };
           updatedMonitor.incidents = [...(monitor.incidents ?? []), incident];
           updatedMonitor.recentIncidentState = "open";
+          await deliverIncidentEvent({
+            monitor: updatedMonitor,
+            incident,
+            eventType: "incident_opened",
+            checkedAt,
+          });
+        } else if (
+          outcome === "success" &&
+          updatedMonitor.currentIncident &&
+          updatedMonitor.currentIncident.state !== "resolved"
+        ) {
+          const trailingSuccesses = countTrailingSuccesses(nextCheckResults);
+          const recoveryThreshold =
+            monitor.alertPolicy?.recoveryThreshold ?? Number.POSITIVE_INFINITY;
+          if (trailingSuccesses >= recoveryThreshold) {
+            const incidentIndex = (updatedMonitor.incidents ?? []).findIndex(
+              (incident) => incident.id === updatedMonitor.currentIncident.id,
+            );
+            if (incidentIndex !== -1) {
+              const existingIncident = updatedMonitor.incidents[incidentIndex];
+              const resolvedIncident = {
+                ...existingIncident,
+                state: "resolved",
+                resolvedAt: checkedAt,
+                muted: existingIncident.muted ?? false,
+                latestCheckResults: nextCheckResults.slice(-trailingSuccesses),
+                timeline: [
+                  ...(existingIncident.timeline ?? []),
+                  {
+                    eventType: "recovered",
+                    actor: "system",
+                    note: "Auto-resolved after recovery threshold met.",
+                    createdAt: checkedAt,
+                  },
+                ],
+              };
+              const incidents = [...updatedMonitor.incidents];
+              incidents[incidentIndex] = resolvedIncident;
+              updatedMonitor.incidents = incidents;
+              updatedMonitor.currentIncident = {
+                ...updatedMonitor.currentIncident,
+                state: "resolved",
+                muted: resolvedIncident.muted,
+                resolvedAt: checkedAt,
+              };
+              updatedMonitor.recentIncidentState = "resolved";
+              resolvedIncidentId = resolvedIncident.id;
+              await deliverIncidentEvent({
+                monitor: updatedMonitor,
+                incident: resolvedIncident,
+                eventType: "incident_resolved",
+                checkedAt,
+              });
+            }
+          }
         }
 
         await repository.update(updatedMonitor);
@@ -159,7 +254,8 @@ export function createCheckWorkerService({
           monitorId: monitor.id,
           status: "completed",
           outcome,
-          openedIncidentId: updatedMonitor.currentIncident?.id ?? null,
+          openedIncidentId: openedIncidentId ?? updatedMonitor.currentIncident?.id ?? null,
+          resolvedIncidentId,
         };
         results.push(result);
         monitorAudits.push({

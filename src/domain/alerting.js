@@ -15,6 +15,63 @@ function parseIsoDate(value) {
   return parsed;
 }
 
+function normalizeEndpointUrl(value) {
+  if (!isNonEmptyString(value)) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function validateEndpoints(input, fieldErrors) {
+  if (!("endpoints" in input)) {
+    return [];
+  }
+
+  if (!Array.isArray(input.endpoints)) {
+    fieldErrors["alertPolicy.endpoints"] =
+      "Endpoints must contain webhook endpoints with non-empty id and absolute HTTP or HTTPS URL.";
+    return [];
+  }
+
+  const endpoints = [];
+  const endpointIds = new Set();
+  for (const endpoint of input.endpoints) {
+    const id = typeof endpoint?.id === "string" ? endpoint.id.trim() : "";
+    const type = typeof endpoint?.type === "string" ? endpoint.type.trim() : "";
+    const url = normalizeEndpointUrl(endpoint?.url);
+
+    if (
+      !id ||
+      endpointIds.has(id) ||
+      type !== "webhook" ||
+      !url
+    ) {
+      fieldErrors["alertPolicy.endpoints"] =
+        "Endpoints must contain webhook endpoints with non-empty id and absolute HTTP or HTTPS URL.";
+      return [];
+    }
+
+    endpointIds.add(id);
+    endpoints.push({
+      id,
+      type,
+      url,
+    });
+  }
+
+  return endpoints;
+}
+
 export function validateAlertPolicy(input) {
   const fieldErrors = {};
 
@@ -52,6 +109,8 @@ export function validateAlertPolicy(input) {
   if (!isNonEmptyString(input.escalationTarget)) {
     fieldErrors["alertPolicy.escalationTarget"] = "Escalation target is required.";
   }
+
+  const endpoints = validateEndpoints(input, fieldErrors);
 
   let notificationCredentials;
   if ("notificationCredentials" in input) {
@@ -94,6 +153,7 @@ export function validateAlertPolicy(input) {
           recoveryThreshold: input.recoveryThreshold,
           notificationChannels,
           escalationTarget: input.escalationTarget.trim(),
+          endpoints,
           notificationCredentials,
         },
   };

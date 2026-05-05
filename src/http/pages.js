@@ -599,9 +599,14 @@ export function renderIncidentDetailPage(detail, formState = {}) {
         <ul>
           ${detail.deliveryHistory
             .map(
-              (delivery) => `<li>${escapeHtml(delivery.channel)}: ${escapeHtml(
-                delivery.status,
-              )} at ${escapeHtml(delivery.deliveredAt ?? "Unknown")}</li>`,
+              (delivery) => {
+                const target = delivery.channel ?? delivery.endpointId ?? "unknown endpoint";
+                const status =
+                  delivery.status ??
+                  delivery.errorClass ??
+                  (delivery.statusCode ? `HTTP ${delivery.statusCode}` : "unknown");
+                return `<li>${escapeHtml(target)}: ${escapeHtml(status)} at ${escapeHtml(delivery.deliveredAt ?? "Unknown")}</li>`;
+              },
             )
             .join("")}
         </ul>

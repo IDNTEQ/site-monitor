@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { handleApiRequest } from "../src/http/app.js";
 import { InMemoryMonitorRepository } from "../src/repositories/in-memory-monitor-repository.js";
 import { createMonitorService } from "../src/services/monitor-service.js";
+import { createCheckWorkerService } from "../src/services/check-worker-service.js";
 
 function createService() {
   return createServiceBundle().service;
@@ -379,6 +380,154 @@ test("GET /api/dashboard applies dataset and payload limit query params", async 
     totalOpenIncidents: 1,
     truncatedMonitors: true,
     truncatedOpenIncidents: false,
+  });
+});
+
+test("GET /api/monitors returns dashboard-shaped monitor rows", async () => {
+  const { service, repository } = createServiceBundle();
+  const monitor = await service.createMonitor({
+    name: "Homepage",
+    environment: "production",
+    url: "https://example.com",
+    method: "GET",
+    intervalSeconds: 60,
+    timeoutMs: 1000,
+    expectedStatusMin: 200,
+    expectedStatusMax: 299,
+    tags: ["web"],
+  });
+
+  await repository.update({
+    ...(await repository.getById(monitor.id)),
+    healthState: "healthy",
+    recentIncidentState: "resolved",
+    lastCheckAt: "2026-04-06T12:00:00.000Z",
+    responseTimeMs: 120,
+  });
+
+  const result = await handleApiRequest({
+    service,
+    method: "GET",
+    pathname: "/api/monitors",
+    searchParams: new URLSearchParams({
+      asOf: "2026-04-06T12:05:00.000Z",
+    }),
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(result.payload.monitors, [
+    {
+      id: monitor.id,
+      name: "Homepage",
+      environment: "production",
+      tags: ["web"],
+      status: "healthy",
+      recentIncidentState: "resolved",
+      incidentId: null,
+      lastCheckAt: "2026-04-06T12:00:00.000Z",
+      responseTimeMs: 120,
+    },
+  ]);
+});
+
+test("GET /api/monitors/:monitorId returns one dashboard-shaped monitor row", async () => {
+  const { service, repository } = createServiceBundle();
+  const monitor = await service.createMonitor({
+    name: "Billing",
+    environment: "production",
+    url: "https://example.com/billing",
+    method: "GET",
+    intervalSeconds: 60,
+    timeoutMs: 1000,
+    expectedStatusMin: 200,
+    expectedStatusMax: 299,
+    tags: ["payments"],
+  });
+
+  await repository.update({
+    ...(await repository.getById(monitor.id)),
+    healthState: "degraded",
+    recentIncidentState: "open",
+    currentIncident: {
+      id: "INC-204",
+      state: "open",
+      openedAt: "2026-04-06T11:55:00.000Z",
+    },
+    lastCheckAt: "2026-04-06T12:03:00.000Z",
+    responseTimeMs: 0,
+  });
+
+  const result = await handleApiRequest({
+    service,
+    method: "GET",
+    pathname: `/api/monitors/${monitor.id}`,
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(result.payload.monitor, {
+    id: monitor.id,
+    name: "Billing",
+    environment: "production",
+    tags: ["payments"],
+    status: "incident",
+    recentIncidentState: "open",
+    incidentId: "INC-204",
+    lastCheckAt: "2026-04-06T12:03:00.000Z",
+    responseTimeMs: 0,
+  });
+});
+
+test("GET /api/reliability returns the worker reliability summary", async () => {
+  const { service, repository } = createServiceBundle();
+  const workerService = createCheckWorkerService({
+    repository,
+    fetchCheck: async () => ({
+      statusCode: 200,
+      responseTimeMs: 120,
+      errorClass: null,
+      matchingRuleResult: "matched",
+    }),
+  });
+
+  await service.createMonitor({
+    name: "Homepage",
+    environment: "production",
+    url: "https://example.com",
+    method: "GET",
+    intervalSeconds: 60,
+    timeoutMs: 1000,
+    expectedStatusMin: 200,
+    expectedStatusMax: 299,
+  });
+  await workerService.runDueMonitors("2026-04-06T12:00:00.000Z");
+
+  const result = await handleApiRequest({
+    service,
+    workerService,
+    method: "GET",
+    pathname: "/api/reliability",
+    searchParams: new URLSearchParams({
+      startedAt: "2026-04-06T00:00:00.000Z",
+      endedAt: "2026-04-06T23:59:59.999Z",
+    }),
+  });
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.payload.reliability.totals.scheduledChecks, 1);
+  assert.equal(result.payload.reliability.totals.completedChecks, 1);
+  assert.equal(result.payload.reliability.runs.length, 1);
+});
+
+test("GET /api/reliability returns 503 when no worker service is configured", async () => {
+  const result = await handleApiRequest({
+    service: createService(),
+    method: "GET",
+    pathname: "/api/reliability",
+  });
+
+  assert.equal(result.statusCode, 503);
+  assert.deepEqual(result.payload, {
+    error: "Worker service unavailable.",
   });
 });
 

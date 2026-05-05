@@ -105,6 +105,7 @@ function buildMonitorInputFromPageBody(body = {}) {
 
 export async function handleApiRequest({
   service,
+  workerService,
   method,
   pathname,
   body,
@@ -158,6 +159,56 @@ export async function handleApiRequest({
     return {
       statusCode: 200,
       payload: { dashboard },
+    };
+  }
+
+  if (method === "GET" && pathname === "/api/monitors") {
+    const dashboard = await service.getDashboard({
+      asOf: searchParams.get("asOf") ?? undefined,
+      datasetDays: searchParams.get("datasetDays") ?? undefined,
+      monitorLimit: searchParams.get("monitorLimit") ?? undefined,
+      environment: searchParams.get("environment") ?? undefined,
+      status: searchParams.get("status") ?? undefined,
+      tag: searchParams.get("tag") ?? undefined,
+      recentIncidentState: searchParams.get("recentIncidentState") ?? undefined,
+    });
+    return {
+      statusCode: 200,
+      payload: {
+        monitors: dashboard.monitors,
+      },
+    };
+  }
+
+  const monitorDetailRouteMatch = pathname.match(/^\/api\/monitors\/([^/]+)$/);
+  if (method === "GET" && monitorDetailRouteMatch) {
+    return {
+      statusCode: 200,
+      payload: {
+        monitor: await service.getMonitorDashboardRow(monitorDetailRouteMatch[1]),
+      },
+    };
+  }
+
+  if (method === "GET" && pathname === "/api/reliability") {
+    if (!workerService) {
+      return {
+        statusCode: 503,
+        payload: {
+          error: "Worker service unavailable.",
+        },
+      };
+    }
+
+    const reliability = await workerService.getReliabilitySummary({
+      startedAt: searchParams.get("startedAt") ?? undefined,
+      endedAt: searchParams.get("endedAt") ?? undefined,
+    });
+    return {
+      statusCode: 200,
+      payload: {
+        reliability,
+      },
     };
   }
 
@@ -333,6 +384,7 @@ export function createApp({
   service = createMonitorService({
     repository: new InMemoryMonitorRepository(),
   }),
+  workerService,
 } = {}) {
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, "http://127.0.0.1");
@@ -349,6 +401,7 @@ export function createApp({
       if (url.pathname.startsWith("/api")) {
         const result = await handleApiRequest({
           service,
+          workerService,
           method: request.method,
           pathname: url.pathname,
           body,

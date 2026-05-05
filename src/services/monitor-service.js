@@ -97,6 +97,20 @@ function deriveDashboardActivityAt(monitor) {
   );
 }
 
+function buildDashboardMonitorRow(monitor) {
+  return {
+    id: monitor.id,
+    name: monitor.name,
+    environment: monitor.environment,
+    tags: monitor.tags ?? [],
+    status: deriveDashboardStatus(monitor),
+    recentIncidentState: deriveRecentIncidentState(monitor),
+    incidentId: monitor.currentIncident?.id ?? null,
+    lastCheckAt: monitor.lastCheckAt ?? null,
+    responseTimeMs: monitor.responseTimeMs ?? null,
+  };
+}
+
 function compareDescendingTimestamps(left, right, leftTimestamp, rightTimestamp) {
   if (leftTimestamp && rightTimestamp && leftTimestamp !== rightTimestamp) {
     return rightTimestamp.localeCompare(leftTimestamp);
@@ -123,6 +137,7 @@ function sanitizeAlertPolicy(alertPolicy) {
     recoveryThreshold: alertPolicy.recoveryThreshold,
     notificationChannels: [...(alertPolicy.notificationChannels ?? [])],
     escalationTarget: alertPolicy.escalationTarget,
+    endpoints: [...(alertPolicy.endpoints ?? [])],
     notificationCredentialChannels: Object.keys(
       alertPolicy.notificationCredentialsEncrypted ?? {},
     ),
@@ -171,6 +186,7 @@ export function createMonitorService({
       recoveryThreshold: nextPolicyInput.recoveryThreshold,
       notificationChannels: [...nextPolicyInput.notificationChannels],
       escalationTarget: nextPolicyInput.escalationTarget,
+      endpoints: [...(nextPolicyInput.endpoints ?? [])],
       notificationCredentialsEncrypted: mergeEncryptedCredentials(
         existingPolicy?.notificationCredentialsEncrypted,
         nextPolicyInput,
@@ -466,17 +482,7 @@ export function createMonitorService({
         return activityAt >= startedAt && activityAt <= asOf;
       });
 
-    const rows = monitors.map((monitor) => ({
-      id: monitor.id,
-      name: monitor.name,
-      environment: monitor.environment,
-      tags: monitor.tags ?? [],
-      status: deriveDashboardStatus(monitor),
-      recentIncidentState: deriveRecentIncidentState(monitor),
-      incidentId: monitor.currentIncident?.id ?? null,
-      lastCheckAt: monitor.lastCheckAt ?? null,
-      responseTimeMs: monitor.responseTimeMs ?? null,
-    }));
+    const rows = monitors.map((monitor) => buildDashboardMonitorRow(monitor));
 
     const summary = {
       healthy: rows.filter((monitor) => monitor.status === "healthy").length,
@@ -577,6 +583,15 @@ export function createMonitorService({
         .sort((left, right) => right.checkedAt.localeCompare(left.checkedAt))
         .slice(0, 20),
     };
+  }
+
+  async function getMonitorDashboardRow(monitorId) {
+    const monitor = await repository.getById(monitorId);
+    if (!monitor) {
+      throw new MonitorNotFoundError(monitorId);
+    }
+
+    return buildDashboardMonitorRow(monitor);
   }
 
   async function getIncidentDetail(incidentId) {
@@ -710,6 +725,7 @@ export function createMonitorService({
     previewAlertDecision,
     listRunnableMonitors,
     getDashboard,
+    getMonitorDashboardRow,
     getMonitorDetail,
     getIncidentDetail,
     applyIncidentAction,
